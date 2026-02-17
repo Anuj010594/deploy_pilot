@@ -4,8 +4,8 @@ import os
 import json
 from pathlib import Path
 
-from app.services.detector import ProjectDetector
-from app.models.response_models import LanguageType
+from services.detector import ProjectDetector
+from models.response_models import LanguageType, ConfidenceLevel
 
 class TestProjectDetector(unittest.TestCase):
     
@@ -81,6 +81,56 @@ class TestProjectDetector(unittest.TestCase):
             
             self.assertEqual(result.primary.primary_language, LanguageType.UNKNOWN)
             self.assertEqual(result.primary.confidence_score, 0.0)
+    
+    def test_confidence_levels(self):
+        """Test confidence level classification"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create a complete Spring Boot project for high confidence
+            os.makedirs(os.path.join(temp_dir, "src/main/java/com/example"), exist_ok=True)
+            os.makedirs(os.path.join(temp_dir, "src/main/resources"), exist_ok=True)
+            os.makedirs(os.path.join(temp_dir, "src/test/java"), exist_ok=True)
+            
+            # pom.xml with Spring Boot content
+            with open(os.path.join(temp_dir, "pom.xml"), "w") as f:
+                f.write("""<?xml version="1.0"?>
+<project>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</project>""")
+            
+            # application.properties
+            with open(os.path.join(temp_dir, "src/main/resources/application.properties"), "w") as f:
+                f.write("server.port=8080\n")
+            
+            # Main Java file with annotations
+            with open(os.path.join(temp_dir, "src/main/java/com/example/App.java"), "w") as f:
+                f.write("@SpringBootApplication\npublic class App {}")
+            
+            result = self.detector.scan_project(temp_dir)
+            
+            self.assertEqual(result.primary.primary_language, LanguageType.JAVA)
+            self.assertGreaterEqual(result.primary.confidence_score, 0.65)
+            self.assertIn(result.primary.confidence_level, [ConfidenceLevel.HIGH, ConfidenceLevel.VERY_HIGH])
+    
+    def test_min_confidence_threshold(self):
+        """Test minimum confidence threshold filtering"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create minimal project
+            with open(os.path.join(temp_dir, "package.json"), "w") as f:
+                json.dump({"name": "test"}, f)
+            
+            # Test with high threshold
+            detector_strict = ProjectDetector(min_confidence=0.80)
+            result_strict = detector_strict.scan_project(temp_dir)
+            
+            # Should still return something (might be unknown if threshold not met)
+            self.assertIsNotNone(result_strict.primary)
+            
+            # Test with low threshold
+            detector_lenient = ProjectDetector(min_confidence=0.30)
+            result_lenient = detector_lenient.scan_project(temp_dir)
+            
+            self.assertEqual(result_lenient.primary.primary_language, LanguageType.NODEJS)
 
 if __name__ == "__main__":
     unittest.main()
