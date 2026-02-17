@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Intelligent project platform and build tool detection service">
+    <title>Project Detector - Platform Detection Service</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">🔍</div>
+                    <div class="logo-text">
+                        <h2>Project Detector</h2>
+                        <span class="logo-subtitle">Platform Intelligence</span>
+                    </div>
+                </div>
+                <div class="status-section">
+                    <div class="status-indicator" id="apiStatus">
+                        <span class="status-dot">○</span>
+                        <span class="status-text">API Checking...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Hero Section -->
+            <div class="hero-section">
+                <h1 class="hero-title">Intelligent Project Detection</h1>
+                <p class="hero-subtitle">
+                    Automatically detect programming languages, frameworks, and build tools from your repositories
+                </p>
+            </div>
+
+            <!-- Scan Form -->
+            <div class="content-wrapper">
+                <div class="scan-form-card">
+                    <h3 class="card-title">Scan Repository</h3>
+                    <p class="card-description">
+                        Upload a ZIP file or provide a GitHub URL to analyze your project
+                    </p>
+
+                    <form id="scanForm">
+                        <!-- Tab Navigation -->
+                        <div class="tab-navigation">
+                            <button type="button" class="tab-button active" data-tab="github">
+                                <span class="tab-icon">🔗</span>
+                                GitHub URL
+                            </button>
+                            <button type="button" class="tab-button" data-tab="upload">
+                                <span class="tab-icon">📁</span>
+                                Upload ZIP
+                            </button>
+                        </div>
+
+                        <!-- GitHub Tab -->
+                        <div class="tab-content active" id="github-tab">
+                            <div class="form-group">
+                                <label for="githubUrl" class="form-label">
+                                    GitHub Repository URL
+                                </label>
+                                <input 
+                                    type="url" 
+                                    id="githubUrl" 
+                                    name="githubUrl"
+                                    class="form-input"
+                                    placeholder="https://github.com/username/repository"
+                                />
+                                <span class="form-hint">
+                                    Enter a public GitHub repository URL
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Upload Tab -->
+                        <div class="tab-content" id="upload-tab">
+                            <div class="form-group">
+                                <label for="zipFile" class="form-label">
+                                    Upload ZIP File
+                                </label>
+                                <div class="file-upload-wrapper">
+                                    <input 
+                                        type="file" 
+                                        id="zipFile" 
+                                        name="zipFile"
+                                        accept=".zip"
+                                        class="file-input"
+                                    />
+                                    <div class="file-upload-display">
+                                        <span class="file-icon">📦</span>
+                                        <span class="file-text">Choose a ZIP file or drag it here</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Confidence Threshold -->
+                        <div class="form-group">
+                            <label for="minConfidence" class="form-label">
+                                Minimum Confidence Threshold
+                                <span class="confidence-value" id="confidenceValue">0.45</span>
+                            </label>
+                            <input 
+                                type="range" 
+                                id="minConfidence" 
+                                name="minConfidence"
+                                min="0" 
+                                max="1" 
+                                step="0.05" 
+                                value="0.45"
+                                class="form-range"
+                            />
+                            <div class="confidence-labels">
+                                <span>Low (0.0)</span>
+                                <span>Moderate (0.45)</span>
+                                <span>High (0.65)</span>
+                                <span>Very High (0.80)</span>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn-primary" id="scanButton">
+                            <span class="btn-icon">🔍</span>
+                            Scan Repository
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Error Display -->
+                <div class="error-container hidden" id="errorContainer">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-content">
+                        <h3>Scan Failed</h3>
+                        <p id="errorMessage"></p>
+                    </div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div class="loading-container hidden" id="loadingContainer">
+                    <div class="spinner"></div>
+                    <p>Analyzing your repository...</p>
+                </div>
+
+                <!-- Results Display -->
+                <div class="results-container hidden" id="resultsContainer">
+                    <!-- Results will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3 class="footer-title">Project Detector</h3>
+                    <p class="footer-description">
+                        Intelligent platform and build tool detection for modern development workflows
+                    </p>
+                </div>
+
+                <div class="footer-section">
+                    <h4 class="footer-heading">Features</h4>
+                    <ul class="footer-list">
+                        <li>Multi-language detection</li>
+                        <li>Framework identification</li>
+                        <li>Build tool recognition</li>
+                        <li>Confidence scoring</li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4 class="footer-heading">API Info</h4>
+                    <ul class="footer-list">
+                        <li>Version: 1.0.0</li>
+                        <li>REST API</li>
+                        <li>FastAPI Backend</li>
+                        <li>Vanilla JS Frontend</li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4 class="footer-heading">Connect</h4>
+                    <div class="footer-links">
+                        <a href="/api/health" class="footer-link" target="_blank" rel="noopener noreferrer">
+                            API Health
+                        </a>
+                        <a href="http://localhost:8000/docs" class="footer-link" target="_blank" rel="noopener noreferrer">
+                            API Docs
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p class="footer-copyright">
+                    © 2024 Project Detector. Built with ❤️ using FastAPI & Vanilla JavaScript
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

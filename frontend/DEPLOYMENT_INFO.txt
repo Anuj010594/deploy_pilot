@@ -1,0 +1,60 @@
+================================================================================
+  PROJECT DETECTOR - FRONTEND DEPLOYMENT INFO
+================================================================================
+
+✅ DEPLOYMENT STATUS: LIVE AND RUNNING
+
+📍 URLs:
+   - Frontend:  http://172.31.35.70:3000
+   - Backend:   http://172.31.35.70:8000 (proxied through frontend)
+   - Local:     http://localhost:3000
+
+🏗️ ARCHITECTURE:
+   - Frontend: Vanilla JavaScript (no dependencies!)
+   - Server:   Python HTTP Server with API Proxy
+   - Backend:  FastAPI (Python)
+
+📁 FILE STRUCTURE:
+   frontend/
+   ├── public/
+   │   ├── index.html   - Main HTML page
+   │   ├── styles.css   - Beautiful styling
+   │   └── app.js       - Application logic
+   ├── serve.py         - Python server with API proxy
+   ├── package.json     - Minimal (no dependencies)
+   └── README.md        - Documentation
+
+🚀 HOW TO START:
+   1. Start Backend (from parent directory):
+      cd .. && python main.py
+
+   2. Start Frontend (from this directory):
+      python3 serve.py
+      # or
+      npm run dev
+
+🔧 FEATURES:
+   ✓ GitHub URL scanning
+   ✓ ZIP file upload with drag & drop
+   ✓ Confidence threshold slider
+   ✓ Real-time API health monitoring
+   ✓ Beautiful gradient UI with animations
+   ✓ Zero npm dependencies
+   ✓ Works with any Node.js version (or no Node.js!)
+
+🔗 API ENDPOINTS (proxied through frontend):
+   - GET  /api/health - Health check
+   - POST /api/scan   - Scan repository
+     Parameters:
+     - github_url (optional): GitHub repository URL
+     - zip_file (optional): ZIP file upload
+     - min_confidence (optional): Minimum confidence (default: 0.45)
+
+💡 WHAT WAS FIXED:
+   - Removed React/Vite and all npm dependencies
+   - Rewrote frontend in vanilla JavaScript
+   - Added API proxy to Python server
+   - Fixed response format to match backend API
+   - Compatible with Node.js 12+ (or no Node.js at all!)
+
+================================================================================
