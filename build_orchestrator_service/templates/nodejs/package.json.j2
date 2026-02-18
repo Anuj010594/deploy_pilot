@@ -1,0 +1,40 @@
+{
+  "name": "{{ package_name|default('my-app') }}",
+  "version": "{{ version|default('1.0.0') }}",
+  "description": "{{ description|default('A Node.js application') }}",
+  "main": "{{ main_file|default('index.js') }}",
+  "scripts": {
+    {% if framework == 'React' or framework == 'Next.js' or framework == 'Vue' %}
+    "dev": "{{ dev_command|default('npm run dev') }}",
+    "build": "{{ build_command|default('npm run build') }}",
+    "start": "{{ start_command|default('npm start') }}",
+    {% else %}
+    "start": "node {{ main_file|default('index.js') }}",
+    {% endif %}
+    "test": "{{ test_command|default('echo \"Error: no test specified\" && exit 1') }}"
+  },
+  "keywords": {{ keywords|default('[]')|tojson }},
+  "author": "{{ author|default('') }}",
+  "license": "{{ license|default('ISC') }}",
+  "dependencies": {
+    {% if dependencies %}
+    {% for dep, ver in dependencies.items() %}
+    "{{ dep }}": "{{ ver }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+    {% else %}
+    
+    {% endif %}
+  },
+  "devDependencies": {
+    {% if dev_dependencies %}
+    {% for dep, ver in dev_dependencies.items() %}
+    "{{ dep }}": "{{ ver }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+    {% else %}
+    
+    {% endif %}
+  },
+  "engines": {
+    "node": "{{ node_version|default('>=18.0.0') }}"
+  }
+}

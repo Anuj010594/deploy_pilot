@@ -1,0 +1,66 @@
+# Multi-stage build for Ruby application
+FROM ruby:{{ ruby_version|default('3.3') }}-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Gemfile
+COPY Gemfile Gemfile.lock ./
+
+# Install gems
+RUN bundle config set --local deployment 'true' && \
+    bundle config set --local without 'development test' && \
+    bundle install
+
+# Production stage
+FROM ruby:{{ ruby_version|default('3.3') }}-slim
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy gems from builder
+COPY --from=builder /usr/local/bundle /usr/local/bundle
+COPY --from=builder /app/.bundle /app/.bundle
+
+# Copy application code
+COPY . .
+
+# Set environment variables
+{% if env_vars %}
+{% for key, value in env_vars.items() %}
+ENV {{ key }}={{ value }}
+{% endfor %}
+{% else %}
+ENV RACK_ENV=production
+ENV RAILS_ENV=production
+ENV RAILS_SERVE_STATIC_FILES=true
+ENV RAILS_LOG_TO_STDOUT=true
+{% endif %}
+
+# Expose port
+EXPOSE {{ port|default('3000') }}
+
+# Precompile assets if Rails
+{% if framework == 'Rails' %}
+RUN bundle exec rake assets:precompile
+{% endif %}
+
+# Run the application
+{% if framework == 'Rails' %}
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "{{ port|default('3000') }}"]
+{% elif framework == 'Sinatra' %}
+CMD ["bundle", "exec", "ruby", "{{ main_file|default('app.rb') }}"]
+{% else %}
+CMD ["bundle", "exec", "ruby", "{{ main_file|default('app.rb') }}"]
+{% endif %}

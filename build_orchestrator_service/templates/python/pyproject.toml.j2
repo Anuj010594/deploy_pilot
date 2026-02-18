@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "{{ project_name|default('my-python-app') }}"
+version = "{{ version|default('0.1.0') }}"
+description = "{{ description|default('A Python application') }}"
+readme = "README.md"
+requires-python = ">={{ python_version|default('3.11') }}"
+license = {text = "{{ license|default('MIT') }}"}
+authors = [
+    {name = "{{ author|default('Your Name') }}", email = "{{ email|default('you@example.com') }}"}
+]
+keywords = {{ keywords|default('[]')|tojson }}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: {{ python_version|default('3.11') }}",
+]
+
+dependencies = [
+    {% if dependencies %}
+    {% for dep in dependencies %}
+    "{{ dep }}",
+    {% endfor %}
+    {% else %}
+    # Add your dependencies here
+    {% endif %}
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.0",
+    "flake8>=6.0",
+]
+
+[project.urls]
+Homepage = "{{ homepage|default('https://github.com/yourusername/my-python-app') }}"
+Repository = "{{ repository|default('https://github.com/yourusername/my-python-app.git') }}"
+
+{% if entry_point %}
+[project.scripts]
+{{ project_name|default('my-python-app') }} = "{{ entry_point }}"
+{% endif %}

@@ -1,0 +1,35 @@
+# Multi-stage build for .NET application
+FROM mcr.microsoft.com/dotnet/sdk:{{ dotnet_sdk_version|default('8.0') }} AS builder
+
+WORKDIR /app
+
+# Copy csproj and restore dependencies
+COPY *.csproj ./
+RUN dotnet restore
+
+# Copy everything else and build
+COPY . ./
+RUN dotnet publish -c Release -o out
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:{{ dotnet_version|default('8.0') }}
+
+WORKDIR /app
+
+# Copy published app from builder
+COPY --from=builder /app/out .
+
+# Set environment variables
+{% if env_vars %}
+{% for key, value in env_vars.items() %}
+ENV {{ key }}={{ value }}
+{% endfor %}
+{% else %}
+ENV ASPNETCORE_URLS=http://+:{{ port|default('80') }}
+{% endif %}
+
+# Expose port
+EXPOSE {{ port|default('80') }}
+
+# Run the application
+ENTRYPOINT ["dotnet", "{{ assembly_name|default('MyApp.dll') }}"]

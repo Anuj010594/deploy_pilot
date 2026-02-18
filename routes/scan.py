@@ -60,6 +60,9 @@ async def scan_repository(
         # Perform detection
         results = detector.scan_project(repo_path)
         
+        # Add project_path to results for Build Orchestrator
+        results.project_path = repo_path
+        
         return results
         
     except ValueError as e:
@@ -69,10 +72,8 @@ async def scan_repository(
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
     
-    finally:
-        # Cleanup
-        if repo_path:
-            repo_handler.cleanup_directory(repo_path)
+    # Note: We don't cleanup the repo_path here anymore because Build Orchestrator needs to access it
+    # Cleanup should be handled separately (e.g., periodic cleanup job or after orchestration completes)
 
 @router.get("/health")
 async def health_check():

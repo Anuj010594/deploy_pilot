@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import BuildOrchestrator from './BuildOrchestrator';
 import '../styles/Results.css';
 
 const Results = ({ data, onReset }) => {
   const { primary, detections, min_confidence_threshold } = data;
+  const [showOrchestrator, setShowOrchestrator] = useState(true);
 
   const getConfidenceBadgeClass = (level) => {
     const levelMap = {
@@ -206,6 +208,11 @@ const Results = ({ data, onReset }) => {
               ))}
           </div>
         </div>
+      )}
+
+      {/* Build Orchestrator Integration */}
+      {showOrchestrator && (
+        <BuildOrchestrator detectionResult={primary} />
       )}
     </div>
   );

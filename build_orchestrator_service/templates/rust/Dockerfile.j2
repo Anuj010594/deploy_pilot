@@ -1,0 +1,55 @@
+# Multi-stage build for Rust application
+FROM rust:{{ rust_version|default('1.76') }}-slim AS builder
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Cargo files
+COPY Cargo.toml ./
+{% if has_cargo_lock %}
+COPY Cargo.lock ./
+{% endif %}
+
+# Create dummy source to cache dependencies
+RUN mkdir src && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src
+
+# Copy actual source code
+COPY . .
+
+# Build the application
+RUN cargo build --release
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the binary from builder
+COPY --from=builder /app/target/release/{{ binary_name|default('app') }} /app/app
+
+# Set environment variables
+{% if env_vars %}
+{% for key, value in env_vars.items() %}
+ENV {{ key }}={{ value }}
+{% endfor %}
+{% endif %}
+
+# Expose port
+EXPOSE {{ port|default('8080') }}
+
+# Run the application
+CMD ["/app/app"]

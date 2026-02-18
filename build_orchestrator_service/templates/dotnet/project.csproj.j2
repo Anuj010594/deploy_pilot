@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk{% if project_type == 'WebAPI' or project_type == 'Web' %}.Web{% endif %}">
+
+  <PropertyGroup>
+    <TargetFramework>{{ dotnet_version|default('net8.0') }}</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    {% if project_type == 'WebAPI' %}
+    <RootNamespace>{{ namespace|default('MyWebApi') }}</RootNamespace>
+    {% elif project_type == 'Console' %}
+    <OutputType>Exe</OutputType>
+    <RootNamespace>{{ namespace|default('MyConsoleApp') }}</RootNamespace>
+    {% else %}
+    <RootNamespace>{{ namespace|default('MyApp') }}</RootNamespace>
+    {% endif %}
+  </PropertyGroup>
+
+  <ItemGroup>
+    {% if dependencies %}
+    {% for dep in dependencies %}
+    <PackageReference Include="{{ dep.name }}" Version="{{ dep.version }}" />
+    {% endfor %}
+    {% else %}
+    <!-- Add your package references here -->
+    {% if project_type == 'WebAPI' %}
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    {% endif %}
+    {% endif %}
+  </ItemGroup>
+
+</Project>

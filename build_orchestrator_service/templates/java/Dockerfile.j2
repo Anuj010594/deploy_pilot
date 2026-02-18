@@ -1,0 +1,49 @@
+# Multi-stage build for Java application
+FROM eclipse-temurin:{{ java_version|default('17') }}-jdk AS builder
+
+WORKDIR /app
+
+# Copy build files
+{% if build_tool == 'maven' %}
+COPY pom.xml .
+COPY src ./src
+
+# Build the application
+RUN ./mvnw clean package -DskipTests || mvn clean package -DskipTests
+{% elif build_tool == 'gradle' %}
+COPY build.gradle settings.gradle gradlew ./
+COPY gradle ./gradle
+COPY src ./src
+
+# Build the application
+RUN ./gradlew build -x test
+{% endif %}
+
+# Runtime stage
+FROM eclipse-temurin:{{ java_version|default('17') }}-jre
+
+WORKDIR /app
+
+# Copy the built artifact from builder stage
+{% if build_tool == 'maven' %}
+COPY --from=builder /app/target/*.{{ packaging_type|default('jar') }} app.{{ packaging_type|default('jar') }}
+{% elif build_tool == 'gradle' %}
+COPY --from=builder /app/build/libs/*.jar app.jar
+{% endif %}
+
+# Set environment variables
+{% if env_vars %}
+{% for key, value in env_vars.items() %}
+ENV {{ key }}={{ value }}
+{% endfor %}
+{% endif %}
+
+# Expose port
+EXPOSE {{ port|default('8080') }}
+
+# Run the application
+{% if packaging_type == 'war' %}
+CMD ["java", "-jar", "app.war"]
+{% else %}
+CMD ["java", "-jar", "app.jar"]
+{% endif %}

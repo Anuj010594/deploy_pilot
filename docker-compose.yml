@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # Detection Service - Responsible for stack detection only
+  detection-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: detection-service
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVICE_NAME=detection-service
+      - PORT=8000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Read-only mount for project scanning
+      - ./projects:/projects:ro
+      # Shared volume for scanned repositories
+      - scanned-repos:/tmp
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "service.type=detection"
+      - "service.version=1.0.0"
+
+  # Build Orchestrator Service - Responsible for validation and orchestration
+  build-orchestrator:
+    build:
+      context: ./build_orchestrator_service
+      dockerfile: Dockerfile
+    container_name: build-orchestrator
+    ports:
+      - "8001:8001"
+    environment:
+      - SERVICE_NAME=build-orchestrator
+      - PORT=8001
+      - PYTHONUNBUFFERED=1
+      - DETECTION_SERVICE_URL=http://detection-service:8000
+    volumes:
+      # Read-only mount for validation
+      - ./projects:/projects:ro
+      # Shared volume for accessing scanned repositories
+      - scanned-repos:/tmp
+    networks:
+      - platform-network
+    depends_on:
+      detection-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "service.type=orchestrator"
+      - "service.version=1.0.0"
+
+  # Nginx Reverse Proxy (Optional - for unified API gateway)
+  nginx:
+    image: nginx:alpine
+    container_name: platform-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - platform-network
+    depends_on:
+      - detection-service
+      - build-orchestrator
+    restart: unless-stopped
+    labels:
+      - "service.type=gateway"
+
+networks:
+  platform-network:
+    driver: bridge
+    name: platform-network
+
+volumes:
+  projects:
+    driver: local
+  scanned-repos:
+    driver: local

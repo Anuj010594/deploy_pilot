@@ -1,0 +1,68 @@
+# Multi-stage build for Python application
+FROM python:{{ python_version|default('3.11') }}-slim AS builder
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files
+{% if has_pyproject %}
+COPY pyproject.toml ./
+{% endif %}
+{% if has_requirements %}
+COPY requirements.txt ./
+{% endif %}
+{% if has_pipfile %}
+COPY Pipfile Pipfile.lock ./
+{% endif %}
+
+# Install dependencies
+{% if has_pipfile %}
+RUN pip install --no-cache-dir pipenv && \
+    pipenv install --system --deploy
+{% elif has_pyproject %}
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
+{% else %}
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+{% endif %}
+
+# Production stage
+FROM python:{{ python_version|default('3.11') }}-slim
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python{{ python_version|default('3.11')|replace('.', '.') }}/site-packages /usr/local/lib/python{{ python_version|default('3.11')|replace('.', '.') }}/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY . .
+
+# Set environment variables
+{% if env_vars %}
+{% for key, value in env_vars.items() %}
+ENV {{ key }}={{ value }}
+{% endfor %}
+{% else %}
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+{% endif %}
+
+# Expose port
+EXPOSE {{ port|default('8000') }}
+
+# Run the application
+{% if framework == 'FastAPI' or framework == 'Flask' %}
+{% if framework == 'FastAPI' %}
+CMD ["uvicorn", "{{ main_module|default('main:app') }}", "--host", "0.0.0.0", "--port", "{{ port|default('8000') }}"]
+{% elif framework == 'Flask' %}
+CMD ["flask", "run", "--host=0.0.0.0", "--port={{ port|default('5000') }}"]
+{% endif %}
+{% else %}
+CMD ["python", "{{ main_file|default('main.py') }}"]
+{% endif %}

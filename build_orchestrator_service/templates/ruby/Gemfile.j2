@@ -1,0 +1,62 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+ruby "{{ ruby_version|default('3.3.0') }}"
+
+{% if framework == 'Rails' %}
+# Rails framework
+gem "rails", "~> {{ rails_version|default('7.1') }}"
+gem "sprockets-rails"
+gem "pg", "~> 1.1"
+gem "puma", "~> 6.0"
+gem "importmap-rails"
+gem "turbo-rails"
+gem "stimulus-rails"
+gem "jbuilder"
+gem "redis", "~> 5.0"
+gem "tzinfo-data", platforms: %i[ windows jruby ]
+gem "bootsnap", require: false
+
+group :development, :test do
+  gem "debug", platforms: %i[ mri windows ]
+end
+
+group :development do
+  gem "web-console"
+end
+
+{% elif framework == 'Sinatra' %}
+# Sinatra framework
+gem "sinatra", "~> {{ sinatra_version|default('3.1') }}"
+gem "sinatra-contrib"
+gem "puma", "~> 6.0"
+gem "rack", "~> 3.0"
+gem "json"
+
+{% else %}
+# Core dependencies
+gem "rake", "~> 13.0"
+
+{% if dependencies %}
+{% for dep, ver in dependencies.items() %}
+gem "{{ dep }}", "{{ ver }}"
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if test_framework == 'rspec' %}
+group :development, :test do
+  gem "rspec", "~> 3.12"
+  gem "rspec-rails" if rails
+end
+{% elif test_framework == 'minitest' %}
+group :test do
+  gem "minitest", "~> 5.0"
+end
+{% endif %}
+
+group :development do
+  gem "rubocop", require: false
+  gem "rubocop-performance", require: false
+end

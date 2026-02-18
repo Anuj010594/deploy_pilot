@@ -1,0 +1,79 @@
+# Multi-stage build for Node.js application
+FROM node:{{ node_version|default('18') }}-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+{% if has_yarn_lock %}
+COPY yarn.lock ./
+{% elif has_pnpm_lock %}
+COPY pnpm-lock.yaml ./
+{% endif %}
+
+# Install dependencies
+{% if package_manager == 'yarn' %}
+RUN yarn install --frozen-lockfile
+{% elif package_manager == 'pnpm' %}
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
+{% else %}
+RUN npm ci
+{% endif %}
+
+# Copy source code
+COPY . .
+
+# Build the application (for frameworks that need it)
+{% if needs_build %}
+{% if package_manager == 'yarn' %}
+RUN yarn build
+{% elif package_manager == 'pnpm' %}
+RUN pnpm build
+{% else %}
+RUN npm run build
+{% endif %}
+{% endif %}
+
+# Production stage
+FROM node:{{ node_version|default('18') }}-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+{% if package_manager == 'yarn' %}
+RUN yarn install --production --frozen-lockfile
+{% elif package_manager == 'pnpm' %}
+RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
+{% else %}
+RUN npm ci --only=production
+{% endif %}
+
+# Copy built application from builder
+{% if needs_build %}
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/build ./build
+{% else %}
+COPY --from=builder /app .
+{% endif %}
+
+# Set environment variables
+{% if env_vars %}
+{% for key, value in env_vars.items() %}
+ENV {{ key }}={{ value }}
+{% endfor %}
+{% else %}
+ENV NODE_ENV=production
+{% endif %}
+
+# Expose port
+EXPOSE {{ port|default('3000') }}
+
+# Run the application
+{% if start_command %}
+CMD {{ start_command|tojson }}
+{% else %}
+CMD ["node", "{{ main_file|default('index.js') }}"]
+{% endif %}

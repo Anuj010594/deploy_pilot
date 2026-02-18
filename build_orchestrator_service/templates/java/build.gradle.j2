@@ -1,0 +1,37 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = '{{ group_id|default('com.example') }}'
+version = '{{ version|default('1.0.0') }}'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_{{ java_version|default('17') }}
+    targetCompatibility = JavaVersion.VERSION_{{ java_version|default('17') }}
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    {% if dependencies %}
+    {% for dep in dependencies %}
+    implementation '{{ dep.group_id }}:{{ dep.artifact_id }}:{{ dep.version }}'
+    {% endfor %}
+    {% else %}
+    // Add your dependencies here
+    {% endif %}
+    
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+}
+
+application {
+    mainClass = '{{ main_class|default('com.example.Main') }}'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

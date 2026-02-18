@@ -218,6 +218,11 @@ function displayResults(data) {
     resultsContainer.innerHTML = html;
     showElement(resultsContainer);
     
+    // Add Build Orchestrator Panel if primary detection exists
+    if (data.primary) {
+        addBuildOrchestratorPanel(data);
+    }
+    
     // Scroll to results
     resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -318,6 +323,283 @@ function showError(message) {
     errorMessage.textContent = message;
     showElement(errorContainer);
     errorContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Build Orchestrator Integration
+async function addBuildOrchestratorPanel(detectionData) {
+    const orchestratorHTML = `
+        <div class="detection-section" id="orchestratorSection" style="margin-top: 2rem;">
+            <div class="section-header">
+                <span class="section-icon">🔧</span>
+                <h3 class="section-title">Build Orchestrator</h3>
+            </div>
+            <div class="orchestrator-panel" style="background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); padding: 1.5rem;">
+                <div class="orchestrator-loading" style="text-align: center; padding: 2rem;">
+                    <div class="loading-spinner" style="display: inline-block; width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 1rem; color: var(--text-secondary);">Validating project files...</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    resultsContainer.insertAdjacentHTML('beforeend', orchestratorHTML);
+    
+    // Call validation API
+    try {
+        const response = await fetch('/api/orchestrator/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                detection_result: detectionData.primary,
+                project_path: detectionData.project_path || '/tmp/scanned_project'
+            })
+        });
+        
+        if (!response.ok) throw new Error('Validation failed');
+        
+        const validationResult = await response.json();
+        displayOrchestratorResults(validationResult, detectionData.primary);
+    } catch (error) {
+        document.querySelector('.orchestrator-panel').innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--error-color);">
+                <p>⚠️ Could not validate project files</p>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function displayOrchestratorResults(validation, detection) {
+    const panel = document.querySelector('.orchestrator-panel');
+    
+    let html = `
+        <div class="orchestrator-tabs" style="display: flex; gap: 1rem; border-bottom: 2px solid var(--border-color); margin-bottom: 1.5rem;">
+            <button class="orch-tab active" data-orch-tab="validation" onclick="switchOrchTab('validation')" style="background: none; border: none; padding: 0.75rem 1.5rem; cursor: pointer; font-weight: 600; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                ${validation.status === 'ready' ? '✅' : '⚠️'} Validation
+            </button>
+            <button class="orch-tab" data-orch-tab="generate" onclick="switchOrchTab('generate')" style="background: none; border: none; padding: 0.75rem 1.5rem; cursor: pointer; font-weight: 600; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                🔧 Generate Files
+            </button>
+            <button class="orch-tab" data-orch-tab="docker" onclick="switchOrchTab('docker')" style="background: none; border: none; padding: 0.75rem 1.5rem; cursor: pointer; font-weight: 600; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                🐳 Docker
+            </button>
+        </div>
+        
+        <div class="orch-content active" id="validation-content">
+            ${createValidationContent(validation)}
+        </div>
+        
+        <div class="orch-content" id="generate-content" style="display: none;">
+            ${createGenerateContent(validation, detection)}
+        </div>
+        
+        <div class="orch-content" id="docker-content" style="display: none;">
+            ${createDockerContent(detection)}
+        </div>
+    `;
+    
+    panel.innerHTML = html;
+}
+
+function createValidationContent(validation) {
+    let html = `<div class="validation-results">`;
+    
+    html += `
+        <div class="status-card" style="background: ${validation.status === 'ready' ? '#d4edda' : '#fff3cd'}; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid ${validation.status === 'ready' ? '#c3e6cb' : '#ffeeba'};">
+            <h4 style="margin: 0 0 0.5rem 0; color: ${validation.status === 'ready' ? '#155724' : '#856404'};">${validation.status === 'ready' ? '✅ Project is ready to build' : '⚠️ Missing required files'}</h4>
+            <p style="margin: 0; font-size: 0.9rem; color: ${validation.status === 'ready' ? '#155724' : '#856404'};">
+                ${validation.status === 'ready' ? 'All required build files are present' : `${validation.missing_files?.length || 0} file(s) need attention`}
+            </p>
+        </div>
+    `;
+    
+    if (validation.missing_files && validation.missing_files.length > 0) {
+        html += `
+            <div class="missing-files" style="margin-bottom: 1.5rem;">
+                <h4 style="margin-bottom: 1rem;">Missing Files:</h4>
+                ${validation.missing_files.map(file => `
+                    <div class="file-item" style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                        <div style="font-weight: 600;">${file.files?.join(', ') || 'Unknown'}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">${file.description || ''}</div>
+                        <span class="severity-badge" style="display: inline-block; margin-top: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${file.severity === 'CRITICAL' ? '#dc3545' : '#ffc107'}; color: white;">
+                            ${file.severity}
+                        </span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    if (validation.suggestions && validation.suggestions.length > 0) {
+        html += `
+            <div class="suggestions">
+                <h4 style="margin-bottom: 1rem;">Suggestions:</h4>
+                ${validation.suggestions.map((sug, idx) => `
+                    <div class="suggestion-item" style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid var(--primary-color);">
+                        <div style="font-weight: 600;">${idx + 1}. ${sug.action}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">${sug.description}</div>
+                        ${sug.automated ? '<span style="color: #28a745; font-size: 0.8rem; margin-top: 0.5rem; display: inline-block;">🤖 Can be automated</span>' : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    return html;
+}
+
+function createGenerateContent(validation, detection) {
+    const language = detection.primary_language || 'Unknown';
+    
+    return `
+        <div class="generate-files">
+            <h4 style="margin-bottom: 1rem;">Generate Missing Files</h4>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Select a file type to generate with customizable options
+            </p>
+            
+            <div class="file-generators" style="display: grid; gap: 1rem;">
+                ${validation.missing_files?.filter(f => f.can_generate).map(file => `
+                    <button class="generate-btn" onclick="generateFile('${file.file_type}', '${language}')" style="background: var(--primary-color); color: white; padding: 1rem; border: none; border-radius: 8px; cursor: pointer; text-align: left; transition: transform 0.2s;">
+                        <div style="font-weight: 600; margin-bottom: 0.25rem;">Generate ${file.files?.[0] || file.file_type}</div>
+                        <div style="font-size: 0.85rem; opacity: 0.9;">${file.description}</div>
+                    </button>
+                `).join('') || '<p style="color: var(--text-secondary);">No files can be auto-generated. All required files are present!</p>'}
+            </div>
+            
+            <div id="generatedFilePreview" style="margin-top: 1.5rem;"></div>
+        </div>
+    `;
+}
+
+function createDockerContent(detection) {
+    return `
+        <div class="docker-generation">
+            <h4 style="margin-bottom: 1rem;">Docker Configuration</h4>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Generate an optimized Dockerfile for ${detection.primary_language}
+            </p>
+            
+            <button class="generate-btn" onclick="generateDockerfile('${detection.primary_language}')" style="background: #0db7ed; color: white; padding: 1rem 2rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: transform 0.2s;">
+                🐳 Generate Dockerfile
+            </button>
+            
+            <div id="dockerfilePreview" style="margin-top: 1.5rem;"></div>
+        </div>
+    `;
+}
+
+function switchOrchTab(tab) {
+    document.querySelectorAll('.orch-tab').forEach(btn => {
+        if (btn.dataset.orchTab === tab) {
+            btn.classList.add('active');
+            btn.style.borderBottom = '3px solid var(--primary-color)';
+            btn.style.color = 'var(--primary-color)';
+        } else {
+            btn.classList.remove('active');
+            btn.style.borderBottom = '3px solid transparent';
+            btn.style.color = 'var(--text-primary)';
+        }
+    });
+    
+    document.querySelectorAll('.orch-content').forEach(content => {
+        content.style.display = content.id === `${tab}-content` ? 'block' : 'none';
+    });
+}
+
+async function generateFile(fileType, language) {
+    const preview = document.getElementById('generatedFilePreview');
+    preview.innerHTML = '<div style="text-align: center; padding: 1rem;">Generating...</div>';
+    
+    try {
+        const response = await fetch('/api/orchestrator/generate-template', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                platform: language,
+                file_type: fileType,
+                version_config: {}
+            })
+        });
+        
+        if (!response.ok) throw new Error('Generation failed');
+        
+        const result = await response.json();
+        
+        preview.innerHTML = `
+            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h5 style="margin: 0;">${result.file_name}</h5>
+                    <button onclick="downloadFile('${result.file_name}', \`${btoa(result.content)}\`)" style="background: #28a745; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;">
+                        ⬇️ Download
+                    </button>
+                </div>
+                <pre style="background: var(--card-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; max-height: 400px;"><code>${escapeHtml(result.content)}</code></pre>
+            </div>
+        `;
+    } catch (error) {
+        preview.innerHTML = `<div style="color: #dc3545; padding: 1rem;">Error: ${error.message}</div>`;
+    }
+}
+
+async function generateDockerfile(language) {
+    const preview = document.getElementById('dockerfilePreview');
+    preview.innerHTML = '<div style="text-align: center; padding: 1rem;">Generating Dockerfile...</div>';
+    
+    try {
+        const response = await fetch('/api/orchestrator/generate-template', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                platform: language,
+                file_type: 'Dockerfile',
+                version_config: {}
+            })
+        });
+        
+        if (!response.ok) throw new Error('Generation failed');
+        
+        const result = await response.json();
+        
+        preview.innerHTML = `
+            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h5 style="margin: 0;">Dockerfile</h5>
+                    <button onclick="downloadFile('Dockerfile', \`${btoa(result.content)}\`)" style="background: #0db7ed; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;">
+                        ⬇️ Download Dockerfile
+                    </button>
+                </div>
+                <pre style="background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow-x: auto; max-height: 400px;"><code>${escapeHtml(result.content)}</code></pre>
+            </div>
+        `;
+    } catch (error) {
+        preview.innerHTML = `<div style="color: #dc3545; padding: 1rem;">Error: ${error.message}</div>`;
+    }
+}
+
+function downloadFile(filename, base64Content) {
+    const content = atob(base64Content);
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
 }
 
 function resetForm() {

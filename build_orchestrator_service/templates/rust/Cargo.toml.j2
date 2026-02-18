@@ -1,0 +1,45 @@
+[package]
+name = "{{ package_name|default('my-rust-app') }}"
+version = "{{ version|default('0.1.0') }}"
+edition = "{{ edition|default('2021') }}"
+authors = ["{{ author|default('Your Name <you@example.com>') }}"]
+description = "{{ description|default('A Rust application') }}"
+license = "{{ license|default('MIT') }}"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+{% if dependencies %}
+{% for dep, ver in dependencies.items() %}
+{{ dep }} = "{{ ver }}"
+{% endfor %}
+{% else %}
+# Add your dependencies here
+# Example:
+# serde = { version = "1.0", features = ["derive"] }
+# tokio = { version = "1.0", features = ["full"] }
+{% endif %}
+
+{% if framework == 'Actix' %}
+actix-web = "{{ actix_version|default('4.4') }}"
+actix-rt = "{{ actix_rt_version|default('2.9') }}"
+{% elif framework == 'Rocket' %}
+rocket = "{{ rocket_version|default('0.5') }}"
+{% elif framework == 'Axum' %}
+axum = "{{ axum_version|default('0.7') }}"
+tokio = { version = "1", features = ["full"] }
+{% endif %}
+
+[dev-dependencies]
+{% if dev_dependencies %}
+{% for dep, ver in dev_dependencies.items() %}
+{{ dep }} = "{{ ver }}"
+{% endfor %}
+{% endif %}
+
+{% if profile_release %}
+[profile.release]
+opt-level = {{ opt_level|default(3) }}
+lto = {{ lto|default('true') }}
+codegen-units = {{ codegen_units|default(1) }}
+{% endif %}

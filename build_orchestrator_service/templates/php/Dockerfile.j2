@@ -1,0 +1,81 @@
+# Multi-stage build for PHP application
+FROM php:{{ php_version|default('8.2') }}-fpm AS builder
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Copy composer files
+COPY composer.json composer.lock ./
+
+# Install dependencies
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+
+# Copy application code
+COPY . .
+
+# Generate autoloader
+RUN composer dump-autoload --optimize
+
+# Production stage
+FROM php:{{ php_version|default('8.2') }}-fpm
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libpq-dev \
+    nginx \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd
+
+# Copy application from builder
+COPY --from=builder /app /app
+
+# Set permissions
+RUN chown -R www-data:www-data /app
+
+# Copy nginx configuration
+COPY --chown=www-data:www-data docker/nginx.conf /etc/nginx/nginx.conf 2>/dev/null || echo "server { listen 80; root /app/public; index index.php; location / { try_files \$uri \$uri/ /index.php?\$query_string; } location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_index index.php; fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name; include fastcgi_params; } }" > /etc/nginx/sites-available/default
+
+# Set environment variables
+{% if env_vars %}
+{% for key, value in env_vars.items() %}
+ENV {{ key }}={{ value }}
+{% endfor %}
+{% else %}
+ENV APP_ENV=production
+{% endif %}
+
+# Expose port
+EXPOSE {{ port|default('80') }}
+
+# Run supervisor to manage PHP-FPM and Nginx
+{% if framework == 'Laravel' %}
+RUN echo "[supervisord]\nnodaemon=true\n\n[program:php-fpm]\ncommand=php-fpm\nautostart=true\nautorestart=true\n\n[program:nginx]\ncommand=nginx -g 'daemon off;'\nautostart=true\nautorestart=true" > /etc/supervisor/conf.d/supervisord.conf
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+{% else %}
+CMD ["php-fpm"]
+{% endif %}

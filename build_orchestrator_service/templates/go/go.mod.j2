@@ -1,0 +1,11 @@
+module {{ module_name|default('example.com/myapp') }}
+
+go {{ go_version|default('1.22') }}
+
+{% if dependencies %}
+require (
+    {% for dep in dependencies %}
+    {{ dep.module }} {{ dep.version }}
+    {% endfor %}
+)
+{% endif %}

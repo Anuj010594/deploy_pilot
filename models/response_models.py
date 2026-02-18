@@ -67,3 +67,4 @@ class MultiDetectionResult(BaseModel):
     detections: List[DetectionResult]
     primary: DetectionResult
     min_confidence_threshold: float = 0.45
+    project_path: Optional[str] = None  # Path to scanned project for Build Orchestrator

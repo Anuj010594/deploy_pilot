@@ -1,0 +1,43 @@
+# Multi-stage build for Go application
+FROM golang:{{ go_version|default('1.22') }}-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod ./
+{% if has_go_sum %}
+COPY go.sum ./
+{% endif %}
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main {{ main_package|default('.') }}
+
+# Runtime stage - use minimal image
+FROM alpine:latest
+
+# Install ca-certificates for HTTPS
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+# Copy the binary from builder
+COPY --from=builder /app/main .
+
+# Set environment variables
+{% if env_vars %}
+{% for key, value in env_vars.items() %}
+ENV {{ key }}={{ value }}
+{% endfor %}
+{% endif %}
+
+# Expose port
+EXPOSE {{ port|default('8080') }}
+
+# Run the application
+CMD ["./main"]

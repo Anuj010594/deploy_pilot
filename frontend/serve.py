@@ -11,7 +11,8 @@ import json
 
 PORT = 3000
 DIRECTORY = "public"
-BACKEND_URL = "http://localhost:8000"
+DETECTION_SERVICE_URL = "http://localhost:8000"
+BUILD_ORCHESTRATOR_URL = "http://localhost:8001"
 
 class ProxyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -49,8 +50,14 @@ class ProxyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length) if content_length > 0 else None
             
-            # Build backend URL
-            backend_url = f"{BACKEND_URL}{self.path}"
+            # Route to appropriate backend service
+            if self.path.startswith('/api/orchestrator/'):
+                # Build Orchestrator routes
+                backend_path = self.path.replace('/api/orchestrator/', '/api/')
+                backend_url = f"{BUILD_ORCHESTRATOR_URL}{backend_path}"
+            else:
+                # Detection Service routes (default)
+                backend_url = f"{DETECTION_SERVICE_URL}{self.path}"
             
             # Create request
             if method == 'GET':
@@ -97,7 +104,8 @@ if __name__ == "__main__":
     with socketserver.TCPServer(("", PORT), ProxyHTTPRequestHandler) as httpd:
         print(f"✅ Frontend server running at: http://localhost:{PORT}")
         print(f"📁 Serving files from: {DIRECTORY}/")
-        print(f"🔗 Proxying /api/* requests to: {BACKEND_URL}")
+        print(f"🔗 Proxying /api/* requests to: {DETECTION_SERVICE_URL}")
+        print(f"🔗 Proxying /api/orchestrator/* requests to: {BUILD_ORCHESTRATOR_URL}")
         print(f"🛑 Press Ctrl+C to stop")
         try:
             httpd.serve_forever()
